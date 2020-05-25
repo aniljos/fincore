@@ -1,0 +1,440 @@
+﻿import React, { Component, Fragment } from 'react';
+import Grid from '@material-ui/core/Grid';
+import { TextField, Divider, Paper, Typography } from '@material-ui/core';
+import Popover from '@material-ui/core/Popover';
+import { withStyles } from '@material-ui/core/styles';
+import axios from 'axios';
+import MaterialTable from 'material-table';
+import  ArrowRightSharp  from '@material-ui/icons/ArrowRightSharp';
+
+const styles = theme => ({
+    list: {
+        minWidth: 300,
+        maxWidth: 600,
+        border: '2px solid darkblue',
+        //padding: 2,
+        //margin: 2
+    },
+    close: {
+        margin: 2
+    },
+    paper: {
+        maxHeight: 200,
+        overflow: 'auto',
+    },
+    label: {
+
+        backgroundColor: 'lightblue',
+        margin: 2,
+        border: '1px solid blue'
+
+    }
+});
+
+interface FLookupFieldListProps {
+
+    AddMode?: boolean
+    OrganizationId?: number,
+    DbConnName?: string,
+    CodeType?: number,
+
+    LookupId?: any,
+    
+    Description?: string,
+    LookupIdLabel?: string,
+    DescriptionLabel?: string,
+    LookupIdPlaceholder?: string,
+    DescriptionPlaceholder?: string,
+
+    LookupTableName?: string,
+    onComplete?: (evt: any) => void,
+    onError?: (evt: any) => void,
+    required?: boolean,
+    classes?: any
+}
+
+class FLookupFieldList extends Component<FLookupFieldListProps> {
+
+    static defaultProps = {
+        LookupIdLabel: "LookupID",
+        DescriptionLabel: "Description",
+        LookupIdPlaceholder: "LookupID",
+        DescriptionPlaceholder: "Description",
+        DbConnName: "",
+        LookupTableName: "",
+        onComplete: () => { },
+        onError: () => { },
+        required: false,
+        AddMode: false
+    }
+
+    state = {
+        data: [],
+        open: false,
+        placement: 'bottom-start',
+        disablePortal: false,
+
+        pFieldValue: "",
+        sFieldValue: "",
+        error: false,
+        anchorEl: null,
+        isInternalChange: false
+    }
+    lookupId: any = null;
+    lookupDescription: any = null;
+
+    CONTROLS_API_URL?: string;
+    anchorRef: any;
+
+    constructor(props) {
+
+        super(props);
+        this.CONTROLS_API_URL = process.env.REACT_APP_CONTROLS_API_URL || undefined;
+
+        if(this.props.LookupId){
+            this.state.pFieldValue = this.props.LookupId;
+            this.fetchDataCheckInitLookup(() => {
+    
+                this.lookupId = this.state.pFieldValue;
+                this.lookupDescription = this.state.sFieldValue;
+                if (this.props.onComplete) {
+                    this.props.onComplete({
+                        LookupIDDb: this.state.pFieldValue,
+                        LookupDescriprionDb: this.state.sFieldValue,
+                        props: {
+                            ...this.props
+                        }
+                    });
+                }
+            }, (ex) => {
+                if (this.props.onError) {
+                    this.props.onError(ex);
+                }
+                if (this.props.onComplete) {
+                    this.props.onComplete({
+                        LookupIDDb: this.state.pFieldValue,
+                        LookupDescriprionDb: this.state.sFieldValue,
+                        props: {
+                            ...this.props
+                        }
+                    });
+                }
+            });
+        }
+
+    }
+    fetchDataGetInitLookup = async (success, error) => {
+
+        try {
+            const { OrganizationId, CodeType, LookupTableName } = this.props;
+            const url = this.CONTROLS_API_URL + "ListGetInitLookup";
+            const data = {
+                OrgId: OrganizationId,
+                LookupCode: CodeType,
+                LkTableName: LookupTableName
+            }
+            const response = await axios.post(url, data);
+            const result = await response.data;
+            this.setState({
+                data: result
+            });
+            success();
+        }
+        catch (ex) {
+            error(ex);
+        }
+    }
+    fetchDataCheckInitLookup = async (success, error) => {
+
+        try {
+            const { OrganizationId, CodeType, LookupTableName } = this.props;
+            const { pFieldValue } = this.state;
+            const url = this.CONTROLS_API_URL + "ListCheckInitLookup";
+            const data = {
+
+                LookupId: pFieldValue,
+                OrgId: OrganizationId,
+                LookupCode: CodeType,
+                LkTableName: LookupTableName
+            }
+            const response = await axios.post(url, data);
+            const result = await response.data;
+
+            this.setState(() => {
+                return {
+                    sFieldValue: result.LookupDescriprionDb,
+                    error: false
+                };
+            }, () => {
+                success()
+            })
+        } catch (ex) {
+
+            this.setState(() => {
+                return {
+                    pFieldValue: "",
+                    sFieldValue: "",
+                    error: true
+                };
+            }, () => {
+                setTimeout(() => {
+                    this.anchorRef.focus();
+                }, 0);
+                error(ex);
+            })
+
+        }
+
+    }
+
+
+
+    lookupId_onKeyDown = (event) => {
+
+        console.log(event);
+        console.log(event.key);
+        if (event.key === "F2" && !this.props.AddMode) {
+            this.fetchDataGetInitLookup(() => {
+
+                this.setState({
+                    anchorEl: this.anchorRef
+                });
+
+            }, (ex) => {
+                console.log(ex);
+                if (this.props.onError) {
+                    this.props.onError(ex);
+                }
+
+            });
+        }
+        if(event.key === "Tab" && !this.props.AddMode){
+            if (this.state.pFieldValue) {
+                this.fetchDataCheckInitLookup(() => {
+    
+                    this.lookupId = this.state.pFieldValue;
+                    this.lookupDescription = this.state.sFieldValue;
+                    if (this.props.onComplete) {
+                        this.props.onComplete({
+                            LookupIDDb: this.state.pFieldValue,
+                            LookupDescriprionDb: this.state.sFieldValue,
+                            props: {
+                                ...this.props
+                            }
+                        });
+                    }
+                }, (ex) => {
+                    if (this.props.onError) {
+                        this.props.onError(ex);
+                    }
+                    if (this.props.onComplete) {
+                        this.props.onComplete({
+                            LookupIDDb: this.state.pFieldValue,
+                            LookupDescriprionDb: this.state.sFieldValue,
+                            props: {
+                                ...this.props
+                            }
+                        });
+                    }
+                })
+            }
+            else {
+    
+                event.preventDefault();
+                this.setState({ error: true });
+                // setTimeout(() => {
+                //     this.anchorRef.focus();
+                // }, 0);
+    
+    
+            }
+        }
+
+    }
+    lookupId_onBlur = (event) => {
+
+        
+    }
+    lookupId_onChange = (event) => {
+
+        this.lookupId = null;
+        this.lookupDescription = null;
+        this.setState({
+            pFieldValue: event.target.value,
+            sFieldValue: "",
+            isInternalChange: true
+        }, () => {
+            if (this.props.onComplete) {
+                this.props.onComplete({
+                    LookupIDDb: this.state.pFieldValue,
+                    LookupDescriprionDb: this.state.sFieldValue,
+                    props: {
+                        ...this.props
+                    }
+                });
+            }
+        });
+    }
+    handleItemClick = (item) => {
+
+        this.setState(() => {
+            return {
+                pFieldValue: item.LookupIDDb,
+                sFieldValue: item.LookupDescriprionDb,
+                anchorEl: null,
+                error: false
+            }
+        }, () => {
+
+            if (this.props.onComplete) {
+                this.props.onComplete({
+                    LookupIDDb: this.state.pFieldValue,
+                    LookupDescriprionDb: this.state.sFieldValue,
+                    props: {
+                        ...this.props
+                    }
+                });
+            }
+        })
+    }
+    handleChange = (evt) => {
+
+        this.setState({
+            pFieldValue: evt.target.value
+        });
+    }
+    closePopover = () => {
+        this.setState({
+            anchorEl: null
+        });
+    }
+    rowSelect = (evt, selectedRow) => {
+
+        this.setState(() => {
+            return {
+                pFieldValue: selectedRow["LookupIDDb"],
+                sFieldValue: selectedRow["LookupDescriprionDb"]
+            }
+        }, () => {
+            this.closePopover();
+            console.log("success");
+            this.lookupId = this.state.pFieldValue;
+            this.lookupDescription = this.state.sFieldValue;
+        })
+        //console.log(selectedRow);
+
+    }
+
+    generateList = () => {
+        if (this.state.data) {
+            return (
+                <MaterialTable
+                    title="Lookup"
+                    columns={[
+                        { title: this.props.LookupIdLabel, field: "LookupIDDb" },
+                        { title: this.props.DescriptionLabel, field: "LookupDescriprionDb" },
+                    ]}
+                    data={this.state.data}
+                    onRowClick={this.rowSelect}
+                />
+            )
+        }
+    }
+
+    // static getDerivedStateFromProps(props, current_state) {
+
+    //     console.log("getDerivedStateFromProps: ", current_state.isInternalChange, current_state.pFieldValue, props.LookupId)
+    //     //&&  !current_state.isInternalChange
+    //     if ((current_state.pFieldValue !== props.LookupId) &&  !current_state.isInternalChange) {
+    //         console.log("getDerivedStateFromProps setting: ", current_state.isInternalChange, current_state.pFieldValue, props.LookupId)
+    //       return {
+    //         pFieldValue: props.LookupId,
+    //         isInternalChange: false
+    //       }
+    //     }
+        
+    //     return {
+    //         isInternalChange: false
+    //     }
+    //   }
+
+    render() {
+
+        const {LookupIdLabel, LookupIdPlaceholder,
+            DescriptionLabel, DescriptionPlaceholder, CodeType, required, classes } = this.props;
+        const open = Boolean(this.state.anchorEl);
+
+        // var list = (
+        //     this.state.data.map((item, index) => (
+        //         <Fragment key={index}>
+        //             <ListItem button  onClick={() => {this.handleItemClick(item)}}>
+        //                 <ListItemText primary={item.LookupIDDb}/>
+        //                 <ListItemText primary={item.LookupDescriprionDb}/>
+        //             </ListItem>
+        //             <Divider component="li" variant="middle"/>
+        //         </Fragment>
+
+        //     ))
+        // );
+        const list = this.generateList();
+
+        return (
+            <Grid container>
+                <Grid container spacing={1} style={{ alignItems: 'center' }}>
+                    <Grid item>
+                        <TextField
+                            // error={this.state.error} 
+                            required={required}
+                            error={this.state.error}
+                            variant="outlined" label={LookupIdPlaceholder}
+                            value={this.state.pFieldValue}
+                            onKeyDown={this.lookupId_onKeyDown}
+                            inputRef={ref => { this.anchorRef = ref }}
+                            onBlur={this.lookupId_onBlur}
+                            onChange={this.lookupId_onChange}></TextField>
+                    </Grid>
+                    <Grid item>
+                        <ArrowRightSharp />
+                    </Grid>
+                    <Grid item>
+                        <TextField
+                            variant="outlined"
+                            inputProps={{ readOnly: true, tabIndex: -1 }}
+                            label={DescriptionPlaceholder} value={this.state.sFieldValue}></TextField>
+                    </Grid>
+                </Grid>
+                <Popover
+                    open={open}
+                    anchorEl={this.state.anchorEl}
+                    anchorOrigin={{
+                        vertical: 'bottom',
+                        horizontal: 'left',
+                    }}
+
+                    onClose={this.closePopover}>
+                    <Paper >
+                        <Paper  >
+                            {list}
+                            {/* <List component="nav" className={classes.list}>
+                                    <ListItem>
+                                            <ListItemText primary={lookupIdLabel}/>
+                                            <ListItemText primary={descriptionLabel}/>
+                                    </ListItem>
+                                    <Divider component="li" />
+                                    <Paper className={classes.paper}>
+                                        
+                                    </Paper> 
+                                </List>                               */}
+                        </Paper>
+                        <Paper>
+                            <Typography className={classes.label} align='center' color='primary'>{CodeType}</Typography>
+                        </Paper>
+                    </Paper>
+                </Popover>
+
+            </Grid>
+        );
+    }
+}
+
+export default withStyles(styles)(FLookupFieldList);
